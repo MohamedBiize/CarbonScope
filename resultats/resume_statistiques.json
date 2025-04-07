@@ -1,0 +1,28 @@
+{
+    "nombre_total_modeles": 4576,
+    "taille_moyenne_modeles": 11.237100743006993,
+    "emission_co2_moyenne": 3.96964311275104,
+    "score_moyen": 21.814863006261174,
+    "architectures_principales": {
+        "LlamaForCausalLM": 1849,
+        "Qwen2ForCausalLM": 1308,
+        "MistralForCausalLM": 615,
+        "Gemma2ForCausalLM": 248,
+        "MixtralForCausalLM": 80
+    },
+    "types_modeles_principaux": {
+        "🔶 fine-tuned on domain-specific datasets": 1785,
+        "🤝 base merges and moerges": 1724,
+        "💬 chat models (RLHF, DPO, IFT, ...)": 718,
+        "🟢 pretrained": 275,
+        "🟩 continuously pretrained": 58
+    },
+    "correlation_taille_co2": 0.7195432505668754,
+    "correlation_performance_co2": 0.19559172448053957,
+    "pourcentage_donnees_manquantes": {
+        "Training Energy (MWh)": 99.84702797202797,
+        "Reported CO2 (t)": 99.84702797202797,
+        "Cloud Provider": 99.84702797202797,
+        "Water Use (Million Liters)": 99.84702797202797
+    }
+}

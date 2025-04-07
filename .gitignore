@@ -1,0 +1,137 @@
+# ==============================================================================
+# General ignores
+# ==============================================================================
+
+# Environment variables
+# Never commit secret keys, API keys, database passwords, etc.
+.env
+.env.*
+*.env
+
+# Log files
+*.log
+logs/
+*.log.*
+
+# OS generated files
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+# Windows
+Thumbs.db
+ehthumbs.db
+desktop.ini
+# Linux
+*~
+
+# IDE / Editor specific files
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+# Add other editor specific files if needed (e.g., .idea/ for PyCharm/WebStorm)
+
+# ==============================================================================
+# Python / FastAPI Backend ignores (inside backend/ or global)
+# ==============================================================================
+
+# Virtual environment folders
+# Adapt names if you use something different (e.g., env, ENV, .virtualenv)
+venv/
+.venv/
+env/
+ENV/
+virtualenv/
+*/venv/
+*/.venv/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+*.egg-info/
+.eggs/
+dist/
+build/
+wheels/
+*.tar.gz
+*.whl
+develop-eggs/
+parts/
+sdist/
+var/
+*.egg
+MANIFEST
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Database files (if any local ones like SQLite are used temporarily)
+*.sqlite3
+*.db
+
+# Instance folders (common in Flask/FastAPI)
+instance/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# ==============================================================================
+# Node.js / React / Next.js Frontend ignores (inside frontend/ or global)
+# ==============================================================================
+
+# Dependency directories
+node_modules/
+*/node_modules/
+
+# Next.js build outputs and cache
+.next/
+out/
+*/.next/
+
+# Other build outputs
+build/
+dist/
+*/build/
+*/dist/
+
+# Debugging logs
+npm-debug.log*
+yarn-error.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Local environment variables for Next.js
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ==============================================================================
+# Project Specific - REVIEW AND ADJUST AS NEEDED
+# ==============================================================================
+
+# If the backend/data/ folder contains large datasets or sensitive info
+# that shouldn't be in Git, uncomment the line below:
+# backend/data/
+
+# If the deployment/ folder contains generated artifacts or secrets
+# uncomment the line below (or ignore specific files within it):
+# deployment/
+
+# If the resultats/ folder contains large generated reports/figures
+# uncomment the line below (or ignore specific file types):
+# resultats/
+# *.pdf
+# *.xlsx
+
+# If screenshots are purely illustrative for docs and very large, consider ignoring:
+# screenshots/
