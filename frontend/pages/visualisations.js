@@ -3,9 +3,9 @@ import Head from 'next/head';
 import { 
   ChartBarIcon, 
   ChartPieIcon, 
-  GlobeIcon,
-  ArrowsExpandIcon,
-  DownloadIcon
+  GlobeAltIcon, //GlobeAltIcon
+  ArrowsPointingOutIcon,
+  ArrowDownTrayIcon //ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { 
   LineChart, 
@@ -224,14 +224,14 @@ export default function Visualisations() {
                             className="p-1 rounded-md hover:bg-gray-100"
                             title="Agrandir/Réduire"
                           >
-                            <ArrowsExpandIcon className="h-5 w-5 text-gray-500" />
+                            <ArrowsPointingOutIcon className="h-5 w-5 text-gray-500" />
                           </button>
                           <button
                             onClick={() => downloadChartData('evolution', TIME_DATA)}
                             className="p-1 rounded-md hover:bg-gray-100"
                             title="Télécharger les données"
                           >
-                            <DownloadIcon className="h-5 w-5 text-gray-500" />
+                            <ArrowDownTrayIcon className="h-5 w-5 text-gray-500" />
                           </button>
                         </div>
                       </div>
@@ -267,14 +267,14 @@ export default function Visualisations() {
                               className="p-1 rounded-md hover:bg-gray-100"
                               title="Agrandir/Réduire"
                             >
-                              <ArrowsExpandIcon className="h-5 w-5 text-gray-500" />
+                              <ArrowsPointingOutIcon className="h-5 w-5 text-gray-500" />
                             </button>
                             <button
                               onClick={() => downloadChartData('architecture', barChartData)}
                               className="p-1 rounded-md hover:bg-gray-100"
                               title="Télécharger les données"
                             >
-                              <DownloadIcon className="h-5 w-5 text-gray-500" />
+                              <ArrowDownTrayIcon className="h-5 w-5 text-gray-500" />
                             </button>
                           </div>
                         </div>
@@ -305,14 +305,14 @@ export default function Visualisations() {
                               className="p-1 rounded-md hover:bg-gray-100"
                               title="Agrandir/Réduire"
                             >
-                              <ArrowsExpandIcon className="h-5 w-5 text-gray-500" />
+                              <ArrowsPointingOutIcon className="h-5 w-5 text-gray-500" />
                             </button>
                             <button
                               onClick={() => downloadChartData('type', pieChartData)}
                               className="p-1 rounded-md hover:bg-gray-100"
                               title="Télécharger les données"
                             >
-                              <DownloadIcon className="h-5 w-5 text-gray-500" />
+                              <ArrowDownTrayIcon className="h-5 w-5 text-gray-500" />
                             </button>
                           </div>
                         </div>
@@ -420,14 +420,14 @@ export default function Visualisations() {
                             className="p-1 rounded-md hover:bg-gray-100"
                             title="Agrandir/Réduire"
                           >
-                            <ArrowsExpandIcon className="h-5 w-5 text-gray-500" />
+                            <ArrowsPointingOutIcon className="h-5 w-5 text-gray-500" />
                           </button>
                           <button
                             onClick={() => downloadChartData('correlation', scatterData)}
                             className="p-1 rounded-md hover:bg-gray-100"
                             title="Télécharger les données"
                           >
-                            <DownloadIcon className="h-5 w-5 text-gray-500" />
+                            <ArrowDownTrayIcon className="h-5 w-5 text-gray-500" />
                           </button>
                         </div>
                       </div>
@@ -501,7 +501,7 @@ export default function Visualisations() {
                       <h2 className="text-lg font-medium text-gray-900 mb-4">Carte d'impact environnemental</h2>
                       <div className="h-[600px] bg-gray-100 rounded-lg flex items-center justify-center">
                         <div className="text-center">
-                          <GlobeIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                          <GlobeAltIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                           <p className="text-gray-500">
                             Carte interactive des centres de données et de leur impact environnemental.
                             <br />

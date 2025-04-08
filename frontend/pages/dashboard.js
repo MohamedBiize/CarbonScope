@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { 
-  FilterIcon, 
-  SortAscendingIcon, 
-  DownloadIcon,
-  SearchIcon,
-  ExclamationCircleIcon
+import {
+  FunnelIcon,           // Anciennement FilterIcon
+  BarsArrowUpIcon,      // Anciennement BarsArrowUpIcon
+  ArrowDownTrayIcon,    // Anciennement ArrowDownTrayIcon
+  MagnifyingGlassIcon,  // Anciennement MagnifyingGlassIcon
+  ExclamationCircleIcon // Correct
 } from '@heroicons/react/24/outline';
 import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
@@ -199,7 +199,7 @@ export default function Dashboard() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
               <div className="relative flex-1 mb-4 md:mb-0 md:mr-4">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <SearchIcon className="h-5 w-5 text-gray-400" />
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
                   type="text"
@@ -214,7 +214,7 @@ export default function Dashboard() {
                   onClick={() => setShowFilters(!showFilters)}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 >
-                  <FilterIcon className="h-5 w-5 mr-2 text-gray-500" />
+                  <FunnelIcon className="h-5 w-5 mr-2 text-gray-500" />
                   Filtres
                 </button>
                 <button
@@ -410,7 +410,7 @@ export default function Dashboard() {
               <button
                 className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
-                <DownloadIcon className="h-5 w-5 mr-1 text-gray-500" />
+                <ArrowDownTrayIcon className="h-5 w-5 mr-1 text-gray-500" />
                 Exporter
               </button>
             </div>
@@ -441,7 +441,7 @@ export default function Dashboard() {
                         <div className="flex items-center">
                           Nom du modèle
                           {sortConfig.key === 'model_name' && (
-                            <SortAscendingIcon className="h-4 w-4 ml-1" />
+                            <BarsArrowUpIcon className="h-4 w-4 ml-1" />
                           )}
                         </div>
                       </th>
@@ -453,7 +453,7 @@ export default function Dashboard() {
                         <div className="flex items-center">
                           Paramètres (B)
                           {sortConfig.key === 'parameters_billions' && (
-                            <SortAscendingIcon className="h-4 w-4 ml-1" />
+                            <BarsArrowUpIcon className="h-4 w-4 ml-1" />
                           )}
                         </div>
                       </th>
@@ -465,7 +465,7 @@ export default function Dashboard() {
                         <div className="flex items-center">
                           Architecture
                           {sortConfig.key === 'architecture' && (
-                            <SortAscendingIcon className="h-4 w-4 ml-1" />
+                            <BarsArrowUpIcon className="h-4 w-4 ml-1" />
                           )}
                         </div>
                       </th>
@@ -477,7 +477,7 @@ export default function Dashboard() {
                         <div className="flex items-center">
                           Type
                           {sortConfig.key === 'model_type' && (
-                            <SortAscendingIcon className="h-4 w-4 ml-1" />
+                            <BarsArrowUpIcon className="h-4 w-4 ml-1" />
                           )}
                         </div>
                       </th>
@@ -489,7 +489,7 @@ export default function Dashboard() {
                         <div className="flex items-center">
                           CO2 (kg)
                           {sortConfig.key === 'training_co2_kg' && (
-                            <SortAscendingIcon className="h-4 w-4 ml-1" />
+                            <BarsArrowUpIcon className="h-4 w-4 ml-1" />
                           )}
                         </div>
                       </th>
@@ -501,7 +501,7 @@ export default function Dashboard() {
                         <div className="flex items-center">
                           Score
                           {sortConfig.key === 'overall_score' && (
-                            <SortAscendingIcon className="h-4 w-4 ml-1" />
+                            <BarsArrowUpIcon className="h-4 w-4 ml-1" />
                           )}
                         </div>
                       </th>

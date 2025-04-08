@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { 
-  StarIcon, 
-  ChevronUpIcon, 
-  ChevronDownIcon, 
-  ExclamationCircleIcon,
-  CheckCircleIcon,
-  ArrowSmRightIcon,
-  LightningBoltIcon
+import {
+  StarIcon, ChevronUpIcon, ChevronDownIcon, ExclamationCircleIcon, CheckCircleIcon,
+  ArrowSmallRightIcon, // Corrigé ArrowSmallRightIcon
+  BoltIcon             // Corrigé BoltIcon
 } from '@heroicons/react/24/outline';
 
 // Données fictives pour le développement
@@ -443,7 +439,7 @@ export default function Scores() {
                               
                               <button className="mt-3 inline-flex items-center text-sm font-medium text-green-600 hover:text-green-500">
                                 Voir les détails
-                                <ArrowSmRightIcon className="ml-1 h-4 w-4" />
+                                <ArrowSmallRightIcon className="ml-1 h-4 w-4" />
                               </button>
                             </div>
                           ))}
@@ -478,7 +474,7 @@ export default function Scores() {
           {/* Conseils pour réduire l'impact */}
           <div className="bg-green-50 shadow rounded-lg p-6 mt-6">
             <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-              <LightningBoltIcon className="h-5 w-5 text-green-600 mr-2" />
+              <BoltIcon className="h-5 w-5 text-green-600 mr-2" />
               Conseils pour réduire l'impact environnemental
             </h2>
             

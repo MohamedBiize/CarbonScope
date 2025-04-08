@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { 
-  LightningBoltIcon, 
-  LocationMarkerIcon, 
-  ChartBarIcon,
-  ArrowRightIcon,
-  SaveIcon,
-  DocumentReportIcon
+import {
+  BoltIcon,             // Anciennement BoltIcon
+  MapPinIcon,           // Anciennement MapPinIcon
+  ChartBarIcon,         // Correct
+  ArrowRightIcon,       // Correct
+  BookmarkIcon,         // Anciennement BookmarkIcon (suggestion)
+  DocumentChartBarIcon  // Anciennement DocumentChartBarIcon (suggestion)
 } from '@heroicons/react/24/outline';
 
 // Données fictives pour le développement
@@ -214,7 +214,7 @@ export default function Simulateur() {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                     <span className="bg-green-100 p-2 rounded-full mr-2">
-                      <LightningBoltIcon className="h-5 w-5 text-green-600" />
+                      <BoltIcon className="h-5 w-5 text-green-600" />
                     </span>
                     Étape 2: Configurer les paramètres
                   </h2>
@@ -310,7 +310,7 @@ export default function Simulateur() {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                     <span className="bg-green-100 p-2 rounded-full mr-2">
-                      <LocationMarkerIcon className="h-5 w-5 text-green-600" />
+                      <MapPinIcon className="h-5 w-5 text-green-600" />
                     </span>
                     Étape 3: Résultats
                   </h2>
@@ -393,7 +393,7 @@ export default function Simulateur() {
                           className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                           onClick={saveSimulation}
                         >
-                          <SaveIcon className="mr-2 h-4 w-4" />
+                          <BookmarkIcon className="mr-2 h-4 w-4" />
                           Sauvegarder
                         </button>
                         
@@ -402,14 +402,14 @@ export default function Simulateur() {
                           className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                           onClick={generateReport}
                         >
-                          <DocumentReportIcon className="mr-2 h-4 w-4" />
+                          <DocumentChartBarIcon className="mr-2 h-4 w-4" />
                           Rapport
                         </button>
                       </div>
                     </div>
                   ) : (
                     <div className="bg-white rounded-lg border border-gray-200 p-6 flex flex-col items-center justify-center h-64">
-                      <LightningBoltIcon className="h-12 w-12 text-gray-300 mb-4" />
+                      <BoltIcon className="h-12 w-12 text-gray-300 mb-4" />
                       <p className="text-center text-gray-500">
                         Sélectionnez un modèle et configurez les paramètres pour calculer l'impact environnemental.
                       </p>
