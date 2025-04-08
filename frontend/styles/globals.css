@@ -1,8 +1,5 @@
 /* Styles globaux pour l'application CarbonScope AI */
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   --primary-color: #10B981;

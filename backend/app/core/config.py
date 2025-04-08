@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic import BaseSettings # Import directement depuis pydantic v1
 from typing import Optional, Dict, Any, List
 import secrets
 from datetime import timedelta

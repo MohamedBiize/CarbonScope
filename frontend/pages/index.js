@@ -3,12 +3,12 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { 
   ChartBarIcon, 
-  LightningBoltIcon, 
+  BoltIcon, 
   StarIcon, 
   DocumentTextIcon,
   ArrowRightIcon,
-  GlobeIcon
-} from '@heroicons/react/outline';
+  GlobeAltIcon
+} from '@heroicons/react/24/outline';
 
 export default function Home() {
   return (
@@ -44,17 +44,13 @@ export default function Home() {
                 </p>
                 <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
                   <div className="rounded-md shadow">
-                    <Link href="/dashboard">
-                      <a className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 md:py-4 md:text-lg md:px-10">
+                    <Link href="/dashboard" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 md:py-4 md:text-lg md:px-10">
                         Explorer le dashboard
-                      </a>
                     </Link>
                   </div>
                   <div className="mt-3 sm:mt-0 sm:ml-3">
-                    <Link href="/simulateur">
-                      <a className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 md:py-4 md:text-lg md:px-10">
+                    <Link href="/simulateur" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 md:py-4 md:text-lg md:px-10">
                         Simuler votre impact
-                      </a>
                     </Link>
                   </div>
                 </div>
@@ -98,7 +94,7 @@ export default function Home() {
 
               <div className="relative">
                 <div className="absolute flex items-center justify-center h-12 w-12 rounded-md bg-green-500 text-white">
-                  <LightningBoltIcon className="h-6 w-6" aria-hidden="true" />
+                  <BoltIcon className="h-6 w-6" aria-hidden="true" />
                 </div>
                 <p className="ml-16 text-lg leading-6 font-medium text-gray-900">Simulateur d'impact</p>
                 <p className="mt-2 ml-16 text-base text-gray-500">
@@ -139,18 +135,14 @@ export default function Home() {
           </h2>
           <div className="mt-8 flex lg:mt-0 lg:flex-shrink-0">
             <div className="inline-flex rounded-md shadow">
-              <Link href="/auth/register">
-                <a className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+              <Link href="/auth/register" className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
                   Créer un compte
                   <ArrowRightIcon className="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
-                </a>
               </Link>
             </div>
             <div className="ml-3 inline-flex rounded-md shadow">
-              <Link href="/auth/login">
-                <a className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-green-600 bg-white hover:bg-gray-50">
+              <Link href="/auth/login" className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-green-600 bg-white hover:bg-gray-50">
                   Se connecter
-                </a>
               </Link>
             </div>
           </div>

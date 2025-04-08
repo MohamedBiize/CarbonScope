@@ -1,5 +1,5 @@
-# Configuration de Next.js pour le déploiement
-# Ce fichier configure les paramètres de build et d'environnement pour Next.js
+// Configuration de Next.js pour le déploiement
+// Ce fichier configure les paramètres de build et d'environnement pour Next.js
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

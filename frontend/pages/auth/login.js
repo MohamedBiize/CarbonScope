@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { LockClosedIcon, MailIcon } from '@heroicons/react/outline';
+import { LockClosedIcon, MailIcon } from '@heroicons/react/24/outline';
 
 export default function Login() {
   const [formData, setFormData] = useState({

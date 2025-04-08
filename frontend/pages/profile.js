@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth, withAuth } from '../components/auth/AuthContext';
 import Head from 'next/head';
 import Link from 'next/link';
-import { UserIcon, CogIcon, LogoutIcon, BookmarkIcon, ClockIcon } from '@heroicons/react/outline';
+import { UserIcon, CogIcon, LogoutIcon, BookmarkIcon, ClockIcon } from '@heroicons/react/24/outline';
 
 const Profile = () => {
   const { user, logout } = useAuth();

@@ -7,7 +7,7 @@ import {
   ArrowRightIcon,
   SaveIcon,
   DocumentReportIcon
-} from '@heroicons/react/outline';
+} from '@heroicons/react/24/outline';
 
 // Données fictives pour le développement
 const MOCK_MODELS = [

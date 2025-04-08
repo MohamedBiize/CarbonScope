@@ -6,7 +6,7 @@ import {
   DownloadIcon,
   SearchIcon,
   ExclamationCircleIcon
-} from '@heroicons/react/outline';
+} from '@heroicons/react/24/outline';
 import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 // Données fictives pour le développement

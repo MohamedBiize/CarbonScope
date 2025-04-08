@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { MenuIcon, XIcon, UserCircleIcon, LogoutIcon, LoginIcon } from '@heroicons/react/outline';
+import { MenuIcon, XIcon, UserCircleIcon, LogoutIcon, LoginIcon } from '@heroicons/react/24/outline';
 
 const Navbar = () => {
   const { data: session } = useSession();

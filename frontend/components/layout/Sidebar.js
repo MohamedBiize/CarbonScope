@@ -9,7 +9,7 @@ import {
   LightningBoltIcon,
   StarIcon,
   CollectionIcon
-} from '@heroicons/react/outline';
+} from '@heroicons/react/24/outline';
 
 const Sidebar = () => {
   const router = useRouter();

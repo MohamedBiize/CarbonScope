@@ -6,7 +6,7 @@ import {
   GlobeIcon,
   ArrowsExpandIcon,
   DownloadIcon
-} from '@heroicons/react/outline';
+} from '@heroicons/react/24/outline';
 import { 
   LineChart, 
   Line, 
