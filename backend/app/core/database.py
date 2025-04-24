@@ -1,50 +1,63 @@
-from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
+# backend/app/core/database.py
 
-class MongoDBConfig:
-    """Configuration pour MongoDB Atlas ou MongoDB local."""
-    
-    # URL de connexion pour MongoDB Atlas (service cloud)
-    MONGODB_ATLAS_URL = "mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority"
-    
-    # Configuration pour MongoDB local (si installé)
-    MONGODB_LOCAL_HOST = "localhost"
-    MONGODB_LOCAL_PORT = 27017
-    
-    # Nom de la base de données
-    DATABASE_NAME = "carbonscope"
-    
-    @staticmethod
-    def get_client(use_atlas=False):
-        """Obtenir un client MongoDB.
-        
-        Args:
-            use_atlas (bool): Si True, utilise MongoDB Atlas, sinon tente une connexion locale.
-            
-        Returns:
-            MongoClient: Client MongoDB connecté.
-        """
-        if use_atlas:
-            # Utiliser MongoDB Atlas (cloud)
-            client = MongoClient(MongoDBConfig.MONGODB_ATLAS_URL, server_api=ServerApi("1"))
-        else:
-            # Utiliser MongoDB local ou Docker
-            client = MongoClient(
-                host=MongoDBConfig.MONGODB_LOCAL_HOST,
-                port=MongoDBConfig.MONGODB_LOCAL_PORT
-            )
-        
-        return client
-    
-    @staticmethod
-    def get_database(use_atlas=False):
-        """Obtenir la base de données MongoDB.
-        
-        Args:
-            use_atlas (bool): Si True, utilise MongoDB Atlas, sinon tente une connexion locale.
-            
-        Returns:
-            Database: Base de données MongoDB.
-        """
-        client = MongoDBConfig.get_client(use_atlas)
-        return client[MongoDBConfig.DATABASE_NAME]
+from motor.motor_asyncio import AsyncIOMotorClient # Utiliser Motor pour async
+from pymongo.server_api import ServerApi
+import asyncio
+
+# Importer l'instance unique des settings
+from app.core.config import settings
+
+class Database:
+    client: AsyncIOMotorClient = None
+    db = None
+
+db_manager = Database()
+
+async def connect_to_mongo():
+    """Établit la connexion à MongoDB au démarrage de l'application."""
+    print("Tentative de connexion à MongoDB...")
+    if settings.USE_MONGODB_ATLAS:
+        if not settings.MONGODB_ATLAS_URL:
+            raise ValueError("USE_MONGODB_ATLAS est True mais MONGODB_ATLAS_URL n'est pas défini dans .env")
+        print(f"Connexion à MongoDB Atlas...")
+        db_manager.client = AsyncIOMotorClient(
+            settings.MONGODB_ATLAS_URL,
+            server_api=ServerApi("1") # Bonne pratique pour Atlas
+        )
+    else:
+        print(f"Connexion à MongoDB local ({settings.MONGODB_LOCAL_HOST}:{settings.MONGODB_LOCAL_PORT})...")
+        db_manager.client = AsyncIOMotorClient(
+            host=settings.MONGODB_LOCAL_HOST,
+            port=settings.MONGODB_LOCAL_PORT
+        )
+
+    # Vérifier la connexion (optionnel mais recommandé)
+    try:
+        # The ismaster command is cheap and does not require auth.
+        await db_manager.client.admin.command('ping')
+        print("Connexion MongoDB réussie !")
+    except Exception as e:
+        print(f"Erreur de connexion MongoDB: {e}")
+        raise
+
+    db_manager.db = db_manager.client[settings.DATABASE_NAME]
+    print(f"Connecté à la base de données '{settings.DATABASE_NAME}'")
+
+async def close_mongo_connection():
+    """Ferme la connexion MongoDB à l'arrêt de l'application."""
+    if db_manager.client:
+        print("Fermeture de la connexion MongoDB.")
+        db_manager.client.close()
+
+def get_database() -> AsyncIOMotorClient: # Renvoie le client DB Motor
+    """Récupère l'instance de la base de données Motor."""
+    if db_manager.db is None:
+        # Ceci ne devrait pas arriver si connect_to_mongo est appelé au démarrage
+        raise Exception("La base de données n'est pas initialisée. Assurez-vous d'appeler connect_to_mongo au démarrage.")
+    return db_manager.db # Retourne l'objet Database de Motor
+
+# Note: Pour utiliser cette connexion dans FastAPI, vous ajouterez généralement
+# connect_to_mongo et close_mongo_connection aux événements startup/shutdown
+# de votre application FastAPI dans main.py, et utiliserez Depends(get_database)
+# dans vos endpoints ou services pour obtenir l'accès à la base de données.
+# Nous ferons cela plus tard.

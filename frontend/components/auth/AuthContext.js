@@ -1,4 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
+import { fetchWithAuth } from '../../utils/api';
 
 // Créer un contexte pour l'authentification
 const AuthContext = createContext();
@@ -14,23 +15,18 @@ export const AuthProvider = ({ children }) => {
 
   // Vérifier si l'utilisateur est déjà connecté au chargement
   useEffect(() => {
-    // Dans une vraie application, nous vérifierions le token JWT dans localStorage
-    // et ferions un appel API pour valider la session
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('auth_token');
         
         if (token) {
-          // Simuler un appel API pour vérifier le token
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          // Simuler un utilisateur connecté
-          setUser({
-            id: '1',
-            username: 'thomas_dupont',
-            email: 'thomas.dupont@example.com',
-            fullName: 'Thomas Dupont'
-          });
+          // Faire un appel API pour vérifier le token
+          const response = await fetchWithAuth('/api/v1/auth/me');
+          if (response) {
+            setUser(response);
+          } else {
+            localStorage.removeItem('auth_token');
+          }
         }
       } catch (err) {
         console.error('Erreur lors de la vérification de l\'authentification:', err);
@@ -45,46 +41,44 @@ export const AuthProvider = ({ children }) => {
 
   // Fonction de connexion
   const login = async (email, password) => {
+    console.log("Attempting login for:", email);
     setLoading(true);
     setError(null);
     
     try {
-      // Simuler un appel API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Convertir les données au format attendu par le backend
+      const formData = new URLSearchParams();
+      formData.append('username', email);
+      formData.append('password', password);
       
-      // Dans une vraie application, nous ferions un appel API ici
-      // const response = await fetch('/api/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ email, password })
-      // });
+      const response = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData
+      });
       
-      // if (!response.ok) {
-      //   throw new Error('Identifiants incorrects');
-      // }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Identifiants incorrects');
+      }
       
-      // const data = await response.json();
-      
-      // Simuler une réponse d'API
-      const data = {
-        token: 'fake_jwt_token_' + Math.random().toString(36).substring(2),
-        user: {
-          id: '1',
-          username: 'thomas_dupont',
-          email: email,
-          fullName: 'Thomas Dupont'
-        }
-      };
+      const data = await response.json();
       
       // Stocker le token dans localStorage
-      localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('auth_token', data.access_token);
       
-      // Mettre à jour l'état utilisateur
-      setUser(data.user);
+      // Récupérer les informations de l'utilisateur
+      const userResponse = await fetchWithAuth('/api/v1/auth/me');
+      if (userResponse) {
+        setUser(userResponse);
+      }
       
       return true;
     } catch (err) {
       setError(err.message || 'Une erreur s\'est produite lors de la connexion');
+      console.error("Login error caught:", err);
       return false;
     } finally {
       setLoading(false);
@@ -97,27 +91,24 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     
     try {
-      // Simuler un appel API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch('/api/v1/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
       
-      // Dans une vraie application, nous ferions un appel API ici
-      // const response = await fetch('/api/auth/register', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(userData)
-      // });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Erreur lors de l\'inscription');
+      }
       
-      // if (!response.ok) {
-      //   throw new Error('Erreur lors de l\'inscription');
-      // }
+      const data = await response.json();
       
-      // const data = await response.json();
+      // Stocker le token dans localStorage
+      localStorage.setItem('auth_token', data.access_token);
       
-      // Simuler une réponse d'API
-      const data = {
-        success: true,
-        message: 'Inscription réussie'
-      };
+      // Mettre à jour l'état utilisateur
+      setUser(data.user);
       
       return true;
     } catch (err) {

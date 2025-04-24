@@ -1,17 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { LockClosedIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function Login() {
+  const router = useRouter();
+  const { user, loading: authLoading, error: authError, login } = useAuth();
   const [formData, setFormData] = useState({
-    email: '',
+    email: '',  
     password: '',
     remember: false
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -49,44 +60,32 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setErrors({}); // Réinitialiser les erreurs locales
+ 
     if (!validateForm()) {
       return;
     }
-    
+ 
     setLoading(true);
-    
     try {
-      // Simuler un appel API
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Dans une vraie application, nous ferions un appel API ici
-      // const response = await fetch('/api/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData)
-      // });
-      
-      // if (!response.ok) {
-      //   throw new Error('Identifiants incorrects');
-      // }
-      
-      setSuccess(true);
-      
-      // Rediriger vers le dashboard après 1 seconde
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 1000);
-      
-    } catch (error) {
-      setErrors({
-        ...errors,
-        general: error.message || "Une erreur s'est produite lors de la connexion"
-      });
+      const success = await login(formData.email, formData.password);
+      if (!success) {
+        setErrors({ general: authError || "Email ou mot de passe incorrect." });
+      }
+    } catch (err) {
+      setErrors({ general: err.message || "Une erreur est survenue." });
     } finally {
       setLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div>

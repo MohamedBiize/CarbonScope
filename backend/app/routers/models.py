@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
 from typing import Any, List, Optional
+from fastapi.encoders import jsonable_encoder
 
 from app.models.models import AIModel, PaginatedResponse, SearchFilter, Statistics, AIModelCreate
 from app.services.model_service import ModelService
@@ -30,6 +31,7 @@ async def get_models(
     """
     Récupère une liste paginée de modèles d'IA avec filtres.
     """
+    print(">>> Début appel GET /api/v1/models/") # Log de début
     search_filter = SearchFilter(
         model_name=model_name,
         min_parameters=min_parameters,
@@ -47,9 +49,19 @@ async def get_models(
         page_size=page_size
     )
     
-    model_service = ModelService()
-    result = await model_service.get_models(search_filter, current_user.id)
-    return result
+    try: # Ajouter ce try
+        model_service = ModelService()
+        print(f">>> Appel de model_service.get_models avec filtre: {search_filter.dict()}") # Log avant appel service
+        result = await model_service.get_models(search_filter, current_user.id)
+        print(">>> model_service.get_models terminé avec succès.") # Log après appel service réussi
+        return result.dict()
+    except Exception as e: # Ajouter ce except
+        print(f"!!! ERREUR DANS LE ROUTEUR models.get_models : {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc() # Imprime le traceback complet ici
+        # Lever une HTTPException 500 standard après avoir loggué
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur (vérifier les logs backend)")
+
 
 
 @router.get("/statistics", response_model=Statistics)

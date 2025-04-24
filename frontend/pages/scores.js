@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { useAuth } from '../contexts/AuthContext';
+import { fetchWithAuth } from '../utils/api';
 import {
   StarIcon, ChevronUpIcon, ChevronDownIcon, ExclamationCircleIcon, CheckCircleIcon,
-  ArrowSmallRightIcon, // Corrigé ArrowSmallRightIcon
-  BoltIcon             // Corrigé BoltIcon
+  ArrowSmallRightIcon, BoltIcon, MagnifyingGlassIcon, FunnelIcon
 } from '@heroicons/react/24/outline';
 
 // Données fictives pour le développement
@@ -30,6 +31,7 @@ const CARBON_CATEGORIES = {
 };
 
 export default function Scores() {
+  const { user } = useAuth();
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -37,15 +39,85 @@ export default function Scores() {
   const [selectedModel, setSelectedModel] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
   const [showRecommendations, setShowRecommendations] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState({
+    minScore: '',
+    maxScore: '',
+    category: '',
+    architecture: ''
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [carbonCategories, setCarbonCategories] = useState({});
+  const [efficiencyMetrics, setEfficiencyMetrics] = useState(null);
 
-  // Simuler le chargement des données depuis l'API
+  // Charger les données initiales
   useEffect(() => {
-    // Dans une vraie application, nous ferions un appel API ici
-    setTimeout(() => {
-      setModels(MOCK_MODELS);
-      setLoading(false);
-    }, 1000);
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [rankingData, categoriesData, metricsData] = await Promise.all([
+          fetchWithAuth('/api/v1/carbon-scores/ranking?limit=50'),
+          fetchWithAuth('/api/v1/carbon-scores/categories'),
+          fetchWithAuth('/api/v1/carbon-scores/efficiency-metrics')
+        ]);
+        
+        setModels(rankingData);
+        setCarbonCategories(categoriesData);
+        setEfficiencyMetrics(metricsData);
+        setError(null);
+      } catch (err) {
+        setError('Erreur lors du chargement des données');
+        console.error('Error loading data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
+
+  // Filtrer et trier les modèles
+  const filteredAndSortedModels = React.useMemo(() => {
+    let result = [...models];
+    
+    // Appliquer les filtres
+    if (searchTerm) {
+      result = result.filter(model => 
+        model.model_name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    if (filters.minScore) {
+      result = result.filter(model => model.carbon_score >= Number(filters.minScore));
+    }
+    
+    if (filters.maxScore) {
+      result = result.filter(model => model.carbon_score <= Number(filters.maxScore));
+    }
+    
+    if (filters.category) {
+      result = result.filter(model => model.carbon_category === filters.category);
+    }
+    
+    if (filters.architecture) {
+      result = result.filter(model => model.architecture === filters.architecture);
+    }
+    
+    // Appliquer le tri
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    
+    return result;
+  }, [models, searchTerm, filters, sortConfig]);
 
   // Fonction pour gérer le tri
   const requestSort = (key) => {
@@ -56,68 +128,40 @@ export default function Scores() {
     setSortConfig({ key, direction });
   };
 
-  // Trier les modèles
-  const sortedModels = React.useMemo(() => {
-    if (!models.length) return [];
-    
-    let sortableModels = [...models];
-    if (sortConfig.key) {
-      sortableModels.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-          return sortConfig.direction === 'ascending' ? -1 : 1;
-        }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-          return sortConfig.direction === 'ascending' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return sortableModels;
-  }, [models, sortConfig]);
-
   // Fonction pour afficher les détails d'un modèle
-  const showModelDetails = (model) => {
+  const showModelDetails = async (model) => {
     setSelectedModel(model);
+    setLoading(true);
     
-    // Simuler un appel API pour obtenir des recommandations
-    setTimeout(() => {
-      // Générer des recommandations fictives
-      const modelRecommendations = models
-        .filter(m => m.id !== model.id && m.carbon_score > model.carbon_score)
-        .slice(0, 3)
-        .map(m => ({
-          original_model_id: model.id,
-          original_model_name: model.model_name,
-          recommended_model_id: m.id,
-          recommended_model_name: m.model_name,
-          co2_savings_kg: model.training_co2_kg - m.training_co2_kg,
-          performance_difference_percent: ((m.overall_score - model.overall_score) / model.overall_score) * 100,
-          similarity_score: Math.random() * 0.5 + 0.5, // Score de similarité fictif entre 0.5 et 1
-          recommendation_reason: m.overall_score > model.overall_score 
-            ? "Modèle plus écologique et plus performant" 
-            : m.overall_score > model.overall_score * 0.9 
-              ? "Modèle plus écologique avec des performances similaires" 
-              : "Modèle plus écologique mais moins performant"
-        }));
-      
-      setRecommendations(modelRecommendations);
+    try {
+      const recommendationsData = await fetchWithAuth(`/api/v1/carbon-scores/recommendations/${model.id}?limit=3`);
+      setRecommendations(recommendationsData);
       setShowRecommendations(true);
-    }, 500);
+    } catch (err) {
+      setError('Erreur lors du chargement des recommandations');
+      console.error('Error loading recommendations:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Fonction pour obtenir la couleur de fond en fonction de la catégorie
   const getCategoryBackgroundColor = (category) => {
-    return CARBON_CATEGORIES[category]?.color || '#d73027';
+    return carbonCategories[category]?.color || '#d73027';
   };
 
   // Fonction pour obtenir la couleur de texte en fonction de la catégorie
   const getCategoryTextColor = (category) => {
-    // Pour les catégories claires (A+, A, B), utiliser du texte foncé
     if (['A+', 'A', 'B'].includes(category)) {
       return 'text-gray-900';
     }
-    // Pour les catégories foncées (C, D, E, F), utiliser du texte clair
     return 'text-white';
+  };
+
+  // Fonction pour formater les nombres
+  const formatNumber = (num) => {
+    if (typeof num !== 'number') return num;
+    return num.toFixed(3);
   };
 
   return (
@@ -136,6 +180,27 @@ export default function Scores() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+          {/* Métriques globales */}
+          {efficiencyMetrics && (
+            <div className="bg-white shadow rounded-lg p-6 mb-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Métriques globales</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-500">Score carbone moyen</div>
+                  <div className="text-2xl font-bold text-gray-900">{formatNumber(efficiencyMetrics.average_score)}</div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-500">Ratio d'efficacité moyen</div>
+                  <div className="text-2xl font-bold text-gray-900">{formatNumber(efficiencyMetrics.average_efficiency)}</div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-500">Modèles évalués</div>
+                  <div className="text-2xl font-bold text-gray-900">{efficiencyMetrics.total_models}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Explication des catégories */}
           <div className="bg-white shadow rounded-lg p-6 mb-6">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Comprendre les scores carbone</h2>
@@ -145,7 +210,7 @@ export default function Scores() {
             </p>
             
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-              {Object.entries(CARBON_CATEGORIES).map(([category, data]) => (
+              {Object.entries(carbonCategories).map(([category, data]) => (
                 <div 
                   key={category}
                   className={`rounded-lg p-3 text-center ${getCategoryTextColor(category)}`}
@@ -158,6 +223,80 @@ export default function Scores() {
             </div>
           </div>
 
+          {/* Barre de recherche et filtres */}
+          <div className="bg-white shadow rounded-lg p-6 mb-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Rechercher un modèle..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
+                </div>
+              </div>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                <FunnelIcon className="h-5 w-5 mr-2" />
+                Filtres
+              </button>
+            </div>
+
+            {showFilters && (
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Score minimum</label>
+                  <input
+                    type="number"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    value={filters.minScore}
+                    onChange={(e) => setFilters({ ...filters, minScore: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Score maximum</label>
+                  <input
+                    type="number"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    value={filters.maxScore}
+                    onChange={(e) => setFilters({ ...filters, maxScore: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Catégorie</label>
+                  <select
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    value={filters.category}
+                    onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                  >
+                    <option value="">Toutes</option>
+                    {Object.keys(carbonCategories).map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Architecture</label>
+                  <select
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    value={filters.architecture}
+                    onChange={(e) => setFilters({ ...filters, architecture: e.target.value })}
+                  >
+                    <option value="">Toutes</option>
+                    {[...new Set(models.map(m => m.architecture))].map(arch => (
+                      <option key={arch} value={arch}>{arch}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Tableau des scores */}
             <div className="lg:col-span-2 bg-white shadow rounded-lg overflow-hidden">
@@ -165,6 +304,9 @@ export default function Scores() {
                 <h2 className="text-lg font-medium text-gray-900">
                   Classement des modèles
                 </h2>
+                <span className="text-sm text-gray-500">
+                  {filteredAndSortedModels.length} modèles trouvés
+                </span>
               </div>
               
               {loading ? (
@@ -202,22 +344,8 @@ export default function Scores() {
                           onClick={() => requestSort('carbon_score')}
                         >
                           <div className="flex items-center">
-                            Score carbone
+                            Score Carbone
                             {sortConfig.key === 'carbon_score' && (
-                              sortConfig.direction === 'ascending' 
-                                ? <ChevronUpIcon className="h-4 w-4 ml-1" />
-                                : <ChevronDownIcon className="h-4 w-4 ml-1" />
-                            )}
-                          </div>
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                          onClick={() => requestSort('carbon_category')}
-                        >
-                          <div className="flex items-center">
-                            Catégorie
-                            {sortConfig.key === 'carbon_category' && (
                               sortConfig.direction === 'ascending' 
                                 ? <ChevronUpIcon className="h-4 w-4 ml-1" />
                                 : <ChevronDownIcon className="h-4 w-4 ml-1" />
@@ -230,7 +358,7 @@ export default function Scores() {
                           onClick={() => requestSort('efficiency_ratio')}
                         >
                           <div className="flex items-center">
-                            Efficacité
+                            Ratio d'Efficacité
                             {sortConfig.key === 'efficiency_ratio' && (
                               sortConfig.direction === 'ascending' 
                                 ? <ChevronUpIcon className="h-4 w-4 ml-1" />
@@ -242,48 +370,35 @@ export default function Scores() {
                           scope="col"
                           className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                         >
-                          Actions
+                          Catégorie
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {sortedModels.map((model) => (
-                        <tr key={model.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {model.model_name}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <div className="flex items-center">
-                              <div className="w-16 bg-gray-200 rounded-full h-2.5 mr-2">
-                                <div 
-                                  className="h-2.5 rounded-full" 
-                                  style={{ 
-                                    width: `${model.carbon_score}%`,
-                                    backgroundColor: getCategoryBackgroundColor(model.carbon_category)
-                                  }}
-                                ></div>
-                              </div>
-                              <span>{model.carbon_score}/100</span>
-                            </div>
+                      {filteredAndSortedModels.map((model) => (
+                        <tr
+                          key={model.id}
+                          className="hover:bg-gray-50 cursor-pointer"
+                          onClick={() => showModelDetails(model)}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{model.model_name}</div>
+                            <div className="text-sm text-gray-500">{model.architecture}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span 
+                            <div className="text-sm text-gray-900">{formatNumber(model.carbon_score)}</div>
+                            <div className="text-xs text-gray-500">Percentile: {formatNumber(model.rank_percentile)}%</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{formatNumber(model.efficiency_ratio)}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span
                               className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getCategoryTextColor(model.carbon_category)}`}
                               style={{ backgroundColor: getCategoryBackgroundColor(model.carbon_category) }}
                             >
                               {model.carbon_category}
                             </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {model.efficiency_ratio.toFixed(4)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <button 
-                              className="text-green-600 hover:text-green-900"
-                              onClick={() => showModelDetails(model)}
-                            >
-                              Détails
-                            </button>
                           </td>
                         </tr>
                       ))}
@@ -293,215 +408,60 @@ export default function Scores() {
               )}
             </div>
 
-            {/* Détails du modèle et recommandations */}
+            {/* Détails et recommandations */}
             <div className="bg-white shadow rounded-lg overflow-hidden">
               <div className="px-4 py-5 sm:px-6">
                 <h2 className="text-lg font-medium text-gray-900">
-                  {selectedModel ? 'Détails du modèle' : 'Sélectionnez un modèle'}
+                  {selectedModel ? 'Détails et recommandations' : 'Sélectionnez un modèle'}
                 </h2>
               </div>
               
-              {selectedModel ? (
+              {selectedModel && (
                 <div className="px-4 py-5 sm:p-6">
                   <div className="mb-6">
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{selectedModel.model_name}</h3>
-                    
-                    <div className="grid grid-cols-2 gap-4 mb-4">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">{selectedModel.model_name}</h3>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-gray-500">Architecture</p>
-                        <p className="font-medium">{selectedModel.architecture}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Type</p>
-                        <p className="font-medium">{selectedModel.model_type}</p>
+                        <div className="text-sm text-gray-500">Score carbone</div>
+                        <div className="text-2xl font-bold text-gray-900">{formatNumber(selectedModel.carbon_score)}</div>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500">Paramètres</p>
-                        <p className="font-medium">{selectedModel.parameters_billions} milliards</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Émissions CO2</p>
-                        <p className="font-medium">{selectedModel.training_co2_kg} kg</p>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-medium text-gray-900">Score carbone</h4>
-                        <span 
-                          className={`px-2 py-1 text-xs font-semibold rounded-full ${getCategoryTextColor(selectedModel.carbon_category)}`}
-                          style={{ backgroundColor: getCategoryBackgroundColor(selectedModel.carbon_category) }}
-                        >
-                          {selectedModel.carbon_category}
-                        </span>
-                      </div>
-                      
-                      <div className="w-full bg-gray-200 rounded-full h-4 mb-2">
-                        <div 
-                          className="h-4 rounded-full" 
-                          style={{ 
-                            width: `${selectedModel.carbon_score}%`,
-                            backgroundColor: getCategoryBackgroundColor(selectedModel.carbon_category)
-                          }}
-                        ></div>
-                      </div>
-                      
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>0</span>
-                        <span>50</span>
-                        <span>100</span>
-                      </div>
-                      
-                      <p className="mt-2 text-sm text-gray-600">
-                        Ce modèle se situe dans le top {100 - Math.floor(selectedModel.rank_percentile)}% des modèles les plus écologiques.
-                      </p>
-                    </div>
-                    
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-900 mb-2">Facteurs d'évaluation</h4>
-                      
-                      <div className="space-y-3">
-                        <div>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span>Efficacité carbone</span>
-                            <span className="font-medium">{selectedModel.efficiency_ratio.toFixed(4)}</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="h-2 rounded-full bg-green-500" 
-                              style={{ width: `${Math.min(selectedModel.efficiency_ratio * 500, 100)}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span>Performance</span>
-                            <span className="font-medium">{selectedModel.overall_score}/100</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="h-2 rounded-full bg-blue-500" 
-                              style={{ width: `${selectedModel.overall_score}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span>Empreinte CO2</span>
-                            <span className="font-medium">{selectedModel.training_co2_kg} kg</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="h-2 rounded-full bg-red-500" 
-                              style={{ width: `${Math.min(selectedModel.training_co2_kg / 50, 100)}%` }}
-                            ></div>
-                          </div>
-                        </div>
+                        <div className="text-sm text-gray-500">Ratio d'efficacité</div>
+                        <div className="text-2xl font-bold text-gray-900">{formatNumber(selectedModel.efficiency_ratio)}</div>
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Recommandations */}
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">
-                      Alternatives recommandées
-                    </h3>
-                    
-                    {showRecommendations ? (
-                      recommendations.length > 0 ? (
-                        <div className="space-y-4">
-                          {recommendations.map((rec, index) => (
-                            <div key={index} className="border border-green-200 rounded-lg p-4 bg-green-50">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <h4 className="font-medium text-gray-900">{rec.recommended_model_name}</h4>
-                                  <p className="text-sm text-green-600 mt-1">
-                                    {rec.co2_savings_kg.toFixed(0)} kg CO2 économisés ({((rec.co2_savings_kg / selectedModel.training_co2_kg) * 100).toFixed(0)}%)
-                                  </p>
+
+                  {showRecommendations && recommendations.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900 mb-3">Recommandations alternatives</h4>
+                      <div className="space-y-4">
+                        {recommendations.map((rec, index) => (
+                          <div key={index} className="bg-gray-50 rounded-lg p-4">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-medium text-gray-900">{rec.recommended_model_name}</div>
+                                <div className="text-sm text-gray-500">
+                                  Économie de CO2: {formatNumber(rec.co2_savings_kg)} kg
                                 </div>
-                                <span 
-                                  className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                                    rec.performance_difference_percent >= 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                                  }`}
-                                >
-                                  {rec.performance_difference_percent >= 0 
-                                    ? `+${rec.performance_difference_percent.toFixed(1)}% perf` 
-                                    : `${rec.performance_difference_percent.toFixed(1)}% perf`}
-                                </span>
                               </div>
-                              
-                              <div className="mt-3 text-sm text-gray-500">
-                                <p>{rec.recommendation_reason}</p>
-                                <p className="mt-1">Similarité: {(rec.similarity_score * 100).toFixed(0)}%</p>
-                              </div>
-                              
-                              <button className="mt-3 inline-flex items-center text-sm font-medium text-green-600 hover:text-green-500">
-                                Voir les détails
-                                <ArrowSmallRightIcon className="ml-1 h-4 w-4" />
-                              </button>
+                              <span
+                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getCategoryTextColor(rec.carbon_category)}`}
+                                style={{ backgroundColor: getCategoryBackgroundColor(rec.carbon_category) }}
+                              >
+                                {rec.carbon_category}
+                              </span>
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-6 bg-gray-50 rounded-lg">
-                          <CheckCircleIcon className="h-10 w-10 text-green-500 mx-auto mb-2" />
-                          <p className="text-gray-500">
-                            Ce modèle est déjà parmi les plus écologiques !
-                          </p>
-                        </div>
-                      )
-                    ) : (
-                      <div className="text-center py-6 bg-gray-50 rounded-lg">
-                        <div className="spinner"></div>
-                        <p className="mt-2 text-sm text-gray-500">Recherche d'alternatives...</p>
+                            <div className="mt-2 text-sm text-gray-500">
+                              {rec.recommendation_reason}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="px-4 py-5 sm:p-6 text-center">
-                  <StarIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">
-                    Sélectionnez un modèle dans le tableau pour voir ses détails et obtenir des recommandations d'alternatives plus écologiques.
-                  </p>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          </div>
-          
-          {/* Conseils pour réduire l'impact */}
-          <div className="bg-green-50 shadow rounded-lg p-6 mt-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-              <BoltIcon className="h-5 w-5 text-green-600 mr-2" />
-              Conseils pour réduire l'impact environnemental
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="bg-white rounded-lg p-4 shadow-sm">
-                <h3 className="font-medium text-gray-900 mb-2">Choisir des modèles plus petits</h3>
-                <p className="text-sm text-gray-500">
-                  Les modèles plus petits consomment généralement moins d'énergie tout en offrant des performances 
-                  suffisantes pour de nombreuses tâches.
-                </p>
-              </div>
-              
-              <div className="bg-white rounded-lg p-4 shadow-sm">
-                <h3 className="font-medium text-gray-900 mb-2">Optimiser la fréquence d'utilisation</h3>
-                <p className="text-sm text-gray-500">
-                  Réduisez le nombre d'appels API et mettez en cache les résultats lorsque c'est possible pour 
-                  minimiser l'empreinte carbone.
-                </p>
-              </div>
-              
-              <div className="bg-white rounded-lg p-4 shadow-sm">
-                <h3 className="font-medium text-gray-900 mb-2">Choisir des régions à faible émission</h3>
-                <p className="text-sm text-gray-500">
-                  Déployez vos applications dans des régions où l'électricité provient principalement de sources 
-                  renouvelables ou à faible émission de carbone.
-                </p>
-              </div>
             </div>
           </div>
         </div>

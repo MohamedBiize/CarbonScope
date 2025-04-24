@@ -1,303 +1,294 @@
+# backend/app/services/model_service.py
+
 from typing import List, Dict, Any, Optional
-import json
-import os
 from bson import ObjectId
-from datetime import datetime
-import pandas as pd
+from bson.errors import InvalidId
+from motor.motor_asyncio import AsyncIOMotorDatabase
+import math # Pour calculer total_pages
 
-from app.core.config import settings
+from app.core.database import get_database
 from app.models.models import AIModel, AIModelCreate, SearchFilter, PaginatedResponse, Statistics
+# Import ModelType si nécessaire pour la conversion lors de la création/update
+from app.models.models import ModelType
 
+from datetime import datetime
+try:
+    from dateutil.parser import parse as parse_datetime
+    DATEUTIL_INSTALLED = True
+except ImportError:
+    DATEUTIL_INSTALLED = False
+    print("WARNING: python-dateutil non installé. La conversion des dates sera limitée.")
+
+# Nom de la collection MongoDB
+COLLECTION_NAME = "ai_models"
 
 class ModelService:
-    """Service pour la gestion des modèles d'IA."""
-    
+    """Service pour la gestion des modèles d'IA via MongoDB."""
+
     def __init__(self):
-        """Initialise le service de modèles."""
-        self.models_db = {}
-        self._load_data()
-    
-    def _load_data(self):
-        """Charge les données des modèles depuis le fichier JSON."""
+        """Initialise le service avec une référence à la base de données."""
+        # On n'initialise plus de dictionnaire en mémoire ici
+        # La connexion est gérée globalement et obtenue via get_database()
+        pass # __init__ peut être vide ou ne pas exister si pas nécessaire
+
+    def _get_collection(self) -> AsyncIOMotorDatabase:
+        """Obtient la collection MongoDB pour les modèles AI."""
+        db = get_database() # Récupère la connexion DB active
+        return db[COLLECTION_NAME]
+
+    def _map_db_model_to_pydantic(self, db_model: Dict[str, Any]) -> Optional[AIModel]: # Changer le retour en Optional[AIModel]
+        print(f"--- Mapping model ID: {db_model.get('_id') if db_model else 'None'}") # Log début mapping
+        """Convertit un document MongoDB en modèle Pydantic AIModel, en gérant la date et les NaN/Infinity."""
+        if not db_model:
+            return None # Retourner None si le document est vide/None
+
+        if "_id" in db_model:
+            db_model["id"] = str(db_model.pop("_id"))
+
+        # Nettoyer les valeurs float invalides (NaN, Infinity) avant validation Pydantic
+        for key, value in db_model.items():
+            if isinstance(value, float):
+                if math.isnan(value) or math.isinf(value):
+                    db_model[key] = None # Remplacer NaN/inf par None (null en JSON)
+
+        # Gérer la conversion de date (code précédent)
+        date_str = db_model.get("date_submitted")
+        if isinstance(date_str, str) and DATEUTIL_INSTALLED:
+            try:
+                db_model["date_submitted"] = parse_datetime(date_str)
+            except ValueError:
+                print(f"Warning: Impossible de parser la date '{date_str}' pour le modèle {db_model.get('id')}. Mise à None.")
+                db_model["date_submitted"] = None
+        elif isinstance(date_str, str):
+            print(f"Warning: python-dateutil non installé, impossible de parser la date '{date_str}'. Mise à None.")
+            db_model["date_submitted"] = None
+        # Assurer que si la date est déjà un datetime, elle reste un datetime
+        elif not isinstance(date_str, (datetime, type(None))):
+            print(f"Warning: Type de date inattendu '{type(date_str)}' pour le modèle {db_model.get('id')}. Mise à None.")
+            db_model["date_submitted"] = None
+
+
         try:
-            with open(settings.DATA_PATH, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                
-            # Convertir les données en modèles et les stocker avec un ID unique
-            for idx, model_data in enumerate(data):
-                model_id = str(ObjectId())
-                
-                # Renommer les clés pour correspondre au modèle Pydantic
-                renamed_data = {
-                    "model_name": model_data.get("Model Name", ""),
-                    "parameters_billions": model_data.get("Parameters (B)", 0.0),
-                    "architecture": model_data.get("Architecture", ""),
-                    "model_type": model_data.get("Model Type", ""),
-                    "training_co2_kg": model_data.get("Training CO2 (kg)", 0.0),
-                    "overall_score": model_data.get("Overall Score", 0.0),
-                    "mmlu_score": model_data.get("MMLU Score"),
-                    "bbh_score": model_data.get("BBH Score"),
-                    "math_score": model_data.get("Math Score"),
-                    "date_submitted": model_data.get("Date Submitted"),
-                    "training_energy_mwh": model_data.get("Training Energy (MWh)"),
-                    "reported_co2_tons": model_data.get("Reported CO2 (t)"),
-                    "cloud_provider": model_data.get("Cloud Provider"),
-                    "water_use_million_liters": model_data.get("Water Use (Million Liters)")
-                }
-                
-                # Calculer l'efficacité carbone (score/émissions)
-                if renamed_data["training_co2_kg"] > 0:
-                    renamed_data["carbon_efficiency"] = renamed_data["overall_score"] / renamed_data["training_co2_kg"]
-                else:
-                    renamed_data["carbon_efficiency"] = None
-                
-                self.models_db[model_id] = {"id": model_id, **renamed_data}
+            # Créer l'instance Pydantic
+            print(f"--- Mapping réussi pour ID: {db_model.get('id')}")
+            return AIModel(**db_model)
         except Exception as e:
-            print(f"Erreur lors du chargement des données: {e}")
-            # Créer quelques modèles fictifs en cas d'erreur
-            self._create_mock_data()
-    
-    def _create_mock_data(self):
-        """Crée des données fictives pour le développement."""
-        # Créer quelques modèles fictifs
-        model_id1 = str(ObjectId())
-        self.models_db[model_id1] = {
-            "id": model_id1,
-            "model_name": "GPT-4",
-            "parameters_billions": 1000.0,
-            "architecture": "Transformer",
-            "model_type": "💬 chat models (RLHF, DPO, IFT, ...)",
-            "training_co2_kg": 5000.0,
-            "overall_score": 90.0,
-            "mmlu_score": 85.0,
-            "bbh_score": 92.0,
-            "math_score": 88.0,
-            "date_submitted": "2024-06-01",
-            "training_energy_mwh": 10000.0,
-            "reported_co2_tons": 5.0,
-            "cloud_provider": "Microsoft (Azure)",
-            "water_use_million_liters": 2.5,
-            "carbon_efficiency": 0.018
-        }
+            # Log plus détaillé en cas d'échec de validation Pydantic
+            print(f"Erreur de validation Pydantic pour AIModel (ID: {db_model.get('id', 'inconnu')}): {e}")
+            print(f"Données DB après nettoyage/traitement: {db_model}")
+            # Retourner None si la validation échoue après nettoyage
+            return None
         
-        model_id2 = str(ObjectId())
-        self.models_db[model_id2] = {
-            "id": model_id2,
-            "model_name": "LLaMA-3",
-            "parameters_billions": 70.0,
-            "architecture": "LlamaForCausalLM",
-            "model_type": "🟢 pretrained",
-            "training_co2_kg": 1200.0,
-            "overall_score": 75.0,
-            "mmlu_score": 70.0,
-            "bbh_score": 78.0,
-            "math_score": 72.0,
-            "date_submitted": "2024-07-15",
-            "training_energy_mwh": 2500.0,
-            "reported_co2_tons": 1.2,
-            "cloud_provider": None,
-            "water_use_million_liters": None,
-            "carbon_efficiency": 0.0625
-        }
     
+
     async def get_models(self, search_filter: SearchFilter, user_id: str = None) -> PaginatedResponse:
-        """Récupère une liste paginée de modèles d'IA avec filtres.
-        
-        Args:
-            search_filter: Filtres de recherche
-            user_id: ID de l'utilisateur pour l'historique de recherche
-            
-        Returns:
-            PaginatedResponse: Réponse paginée avec les modèles
-        """
-        # Filtrer les modèles selon les critères
-        filtered_models = self.models_db.values()
-        
+        """Récupère une liste paginée de modèles d'IA avec filtres depuis MongoDB."""
+        collection = self._get_collection()
+        query = {}
+
+        # Construire la requête de filtre MongoDB
         if search_filter.model_name:
-            filtered_models = [m for m in filtered_models if search_filter.model_name.lower() in m["model_name"].lower()]
-        
-        if search_filter.min_parameters is not None:
-            filtered_models = [m for m in filtered_models if m["parameters_billions"] >= search_filter.min_parameters]
-        
-        if search_filter.max_parameters is not None:
-            filtered_models = [m for m in filtered_models if m["parameters_billions"] <= search_filter.max_parameters]
-        
+            query["model_name"] = {"$regex": search_filter.model_name, "$options": "i"} # Recherche insensible à la casse
         if search_filter.architecture:
-            filtered_models = [m for m in filtered_models if search_filter.architecture == m["architecture"]]
-        
+            query["architecture"] = search_filter.architecture
         if search_filter.model_type:
-            filtered_models = [m for m in filtered_models if search_filter.model_type == m["model_type"]]
-        
-        if search_filter.min_score is not None:
-            filtered_models = [m for m in filtered_models if m["overall_score"] >= search_filter.min_score]
-        
-        if search_filter.max_score is not None:
-            filtered_models = [m for m in filtered_models if m["overall_score"] <= search_filter.max_score]
-        
-        if search_filter.min_co2 is not None:
-            filtered_models = [m for m in filtered_models if m["training_co2_kg"] >= search_filter.min_co2]
-        
-        if search_filter.max_co2 is not None:
-            filtered_models = [m for m in filtered_models if m["training_co2_kg"] <= search_filter.max_co2]
-        
+            # Assurer que la valeur correspond bien à l'Enum ou au string stocké
+             query["model_type"] = search_filter.model_type # Ajuster si l'Enum est utilisé différemment en DB
         if search_filter.cloud_provider:
-            filtered_models = [m for m in filtered_models if m["cloud_provider"] == search_filter.cloud_provider]
-        
-        # Trier les modèles
-        reverse = search_filter.sort_order.lower() == "desc"
-        filtered_models = sorted(filtered_models, key=lambda m: m.get(search_filter.sort_by, ""), reverse=reverse)
-        
+            query["cloud_provider"] = search_filter.cloud_provider
+
+        # Filtres numériques (range)
+        param_filter = {}
+        if search_filter.min_parameters is not None:
+            param_filter["$gte"] = search_filter.min_parameters
+        if search_filter.max_parameters is not None:
+            param_filter["$lte"] = search_filter.max_parameters
+        if param_filter:
+            query["parameters_billions"] = param_filter
+
+        score_filter = {}
+        if search_filter.min_score is not None:
+            score_filter["$gte"] = search_filter.min_score
+        if search_filter.max_score is not None:
+            score_filter["$lte"] = search_filter.max_score
+        if score_filter:
+            query["overall_score"] = score_filter
+
+        co2_filter = {}
+        if search_filter.min_co2 is not None:
+            co2_filter["$gte"] = search_filter.min_co2
+        if search_filter.max_co2 is not None:
+            co2_filter["$lte"] = search_filter.max_co2
+        if co2_filter:
+            query["training_co2_kg"] = co2_filter
+
+        # TODO: Ajouter filtres de date si nécessaire (date_from, date_to)
+
+        # Calculer le nombre total de documents correspondant aux filtres
+        print(f"--- Exécution requête MongoDB: {query}") # Log de la requête
+        total = await collection.count_documents(query)
+        print(f"--- Nombre total trouvé: {total}") # Log du total
+
         # Calculer la pagination
-        total = len(filtered_models)
-        total_pages = (total + search_filter.page_size - 1) // search_filter.page_size
-        
-        start_idx = (search_filter.page - 1) * search_filter.page_size
-        end_idx = start_idx + search_filter.page_size
-        
-        paginated_models = filtered_models[start_idx:end_idx]
-        
-        # Enregistrer la recherche dans l'historique de l'utilisateur si nécessaire
-        # (Dans une vraie application, cela serait fait via le UserService)
-        
+        skip = (search_filter.page - 1) * search_filter.page_size
+        total_pages = math.ceil(total / search_filter.page_size) if search_filter.page_size > 0 else 0
+
+        # Déterminer le tri
+        sort_direction = 1 if search_filter.sort_order.lower() == "asc" else -1
+        sort_key = search_filter.sort_by
+
+        # Récupérer les documents paginés et triés
+        cursor = collection.find(query).sort(sort_key, sort_direction).skip(skip).limit(search_filter.page_size)
+        db_models = await cursor.to_list(length=search_filter.page_size)
+        print(f"--- {len(db_models)} documents récupérés pour la page.") # Log nb documents page
+
+
+        # Convertir les résultats en modèles Pydantic
+        items = [self._map_db_model_to_pydantic(model) for model in db_models]
+
         return PaginatedResponse(
-            items=paginated_models,
+            items=items,
             total=total,
             page=search_filter.page,
             page_size=search_filter.page_size,
             total_pages=total_pages
         )
-    
+
     async def get_model_by_id(self, model_id: str) -> Optional[AIModel]:
-        """Récupère un modèle d'IA par son ID.
-        
-        Args:
-            model_id: ID du modèle
-            
-        Returns:
-            Optional[AIModel]: Modèle si trouvé, None sinon
-        """
-        model_data = self.models_db.get(model_id)
-        if not model_data:
-            return None
-        
-        return AIModel(**model_data)
-    
+        """Récupère un modèle d'IA par son ID depuis MongoDB."""
+        collection = self._get_collection()
+        try:
+            obj_id = ObjectId(model_id)
+        except InvalidId:
+            return None # ID invalide, donc modèle non trouvé
+
+        db_model = await collection.find_one({"_id": obj_id})
+
+        if db_model:
+            return self._map_db_model_to_pydantic(db_model)
+        return None
+
     async def create_model(self, model_create: AIModelCreate) -> AIModel:
-        """Crée un nouveau modèle d'IA.
-        
-        Args:
-            model_create: Données pour la création du modèle
-            
-        Returns:
-            AIModel: Modèle créé
-        """
-        model_id = str(ObjectId())
-        
-        # Calculer l'efficacité carbone (score/émissions)
+        """Crée un nouveau modèle d'IA dans MongoDB."""
+        collection = self._get_collection()
+
+        # Convertir le modèle Pydantic en dictionnaire
+        model_data = model_create.model_dump()
+
+        # Calculer l'efficacité carbone (si applicable)
         carbon_efficiency = None
-        if model_create.training_co2_kg > 0:
-            carbon_efficiency = model_create.overall_score / model_create.training_co2_kg
-        
-        model_data = {
-            "id": model_id,
-            **model_create.model_dump(),
-            "carbon_efficiency": carbon_efficiency
-        }
-        
-        self.models_db[model_id] = model_data
-        
-        return AIModel(**model_data)
-    
+        if model_data.get("training_co2_kg", 0) > 0 and model_data.get("overall_score", 0) > 0:
+             carbon_efficiency = model_data["overall_score"] / model_data["training_co2_kg"]
+        model_data["carbon_efficiency"] = carbon_efficiency
+
+        # Insérer dans la base de données
+        result = await collection.insert_one(model_data)
+
+        # Récupérer le document nouvellement créé pour le retourner
+        # (find_one nécessite l'_id ObjectId)
+        new_db_model = await collection.find_one({"_id": result.inserted_id})
+
+        return self._map_db_model_to_pydantic(new_db_model)
+
+    # --- Les méthodes suivantes ne sont PAS encore refactorisées ---
+    # Elles nécessiteraient d'utiliser MongoDB (potentiellement $distinct ou $group)
+    # au lieu de self.models_db qui n'existe plus.
+
     async def get_statistics(self) -> Statistics:
-        """Récupère les statistiques globales sur les modèles d'IA.
-        
-        Returns:
-            Statistics: Statistiques globales
-        """
-        models = list(self.models_db.values())
-        
-        # Calculer les statistiques de base
-        total_models = len(models)
-        average_parameters = sum(m["parameters_billions"] for m in models) / total_models if total_models > 0 else 0
-        average_co2 = sum(m["training_co2_kg"] for m in models) / total_models if total_models > 0 else 0
-        average_score = sum(m["overall_score"] for m in models) / total_models if total_models > 0 else 0
-        total_co2 = sum(m["training_co2_kg"] for m in models)
-        
-        # Trouver les architectures et types de modèles les plus courants
-        architectures = {}
-        model_types = {}
-        
-        for model in models:
-            arch = model["architecture"]
-            mtype = model["model_type"]
-            
-            architectures[arch] = architectures.get(arch, 0) + 1
-            model_types[mtype] = model_types.get(mtype, 0) + 1
-        
-        most_common_architecture = max(architectures.items(), key=lambda x: x[1])[0] if architectures else ""
-        most_common_model_type = max(model_types.items(), key=lambda x: x[1])[0] if model_types else ""
-        
-        # Trouver les modèles les plus efficaces et les moins efficaces
-        models_with_efficiency = [m for m in models if m.get("carbon_efficiency") is not None]
-        most_efficient_model = max(models_with_efficiency, key=lambda m: m.get("carbon_efficiency", 0)) if models_with_efficiency else {}
-        least_efficient_model = min(models_with_efficiency, key=lambda m: m.get("carbon_efficiency", float('inf'))) if models_with_efficiency else {}
-        
-        # Trouver le modèle le plus performant
-        best_performing_model = max(models, key=lambda m: m["overall_score"]) if models else {}
-        
-        # Trouver le modèle le plus récent
-        models_with_date = [m for m in models if m.get("date_submitted") is not None]
-        most_recent_model = max(models_with_date, key=lambda m: m["date_submitted"]) if models_with_date else {}
-        
+        """Récupère les statistiques globales sur les modèles d'IA."""
+        # TODO: Refactoriser pour utiliser MongoDB Aggregation Framework
+        # Pour l'instant, retourne des valeurs vides/par défaut
         return Statistics(
-            total_models=total_models,
-            average_parameters=average_parameters,
-            average_co2=average_co2,
-            average_score=average_score,
-            total_co2=total_co2,
-            most_common_architecture=most_common_architecture,
-            most_common_model_type=most_common_model_type,
-            most_efficient_model=most_efficient_model,
-            least_efficient_model=least_efficient_model,
-            best_performing_model=best_performing_model,
-            most_recent_model=most_recent_model
+             total_models=0, average_parameters=0, average_co2=0, average_score=0,
+             total_co2=0, most_common_architecture="", most_common_model_type=ModelType.OTHER, # Mettre un type par défaut
+             most_efficient_model={}, least_efficient_model={}, best_performing_model={}, most_recent_model={}
         )
-    
+
     async def get_architectures(self) -> List[str]:
-        """Récupère la liste des architectures disponibles.
-        
-        Returns:
-            List[str]: Liste des architectures
-        """
-        architectures = set()
-        for model in self.models_db.values():
-            if model["architecture"]:
-                architectures.add(model["architecture"])
-        
-        return sorted(list(architectures))
-    
+        """Récupère la liste des architectures disponibles."""
+        # TODO: Refactoriser pour utiliser collection.distinct("architecture")
+        return [] # Retourne vide pour l'instant
+
     async def get_model_types(self) -> List[str]:
-        """Récupère la liste des types de modèles disponibles.
-        
-        Returns:
-            List[str]: Liste des types de modèles
-        """
-        model_types = set()
-        for model in self.models_db.values():
-            if model["model_type"]:
-                model_types.add(model["model_type"])
-        
-        return sorted(list(model_types))
-    
+        """Récupère la liste des types de modèles disponibles."""
+         # TODO: Refactoriser pour utiliser collection.distinct("model_type")
+        return [] # Retourne vide pour l'instant
+
     async def get_cloud_providers(self) -> List[str]:
-        """Récupère la liste des fournisseurs cloud disponibles.
+        """Récupère la liste des fournisseurs de cloud disponibles."""
+        # TODO: Refactoriser pour utiliser MongoDB Aggregation Framework
+        return []
+
+    async def load_initial_data(self) -> None:
+        """Charge les données initiales depuis le fichier JSON dans MongoDB."""
+        import json
+        from app.core.config import settings
+        import os
+
+        collection = self._get_collection()
         
-        Returns:
-            List[str]: Liste des fournisseurs cloud
-        """
-        providers = set()
-        for model in self.models_db.values():
-            if model["cloud_provider"]:
-                providers.add(model["cloud_provider"])
+        # Vérifier si la collection est déjà peuplée
+        count = await collection.count_documents({})
+        print(f"Nombre de documents dans la collection: {count}")
         
-        return sorted(list(providers))
+        if count > 0:
+            print("La collection est déjà peuplée, pas de chargement initial nécessaire.")
+            # Vérifier la structure des données existantes
+            first_doc = await collection.find_one({})
+            print("Structure du premier document:")
+            print(first_doc)
+            return
+
+        try:
+            # Construire le chemin absolu vers le fichier de données
+            data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), settings.DATA_PATH)
+            print(f"Chemin du fichier de données: {data_path}")
+            
+            # Vérifier si le fichier existe
+            if not os.path.exists(data_path):
+                print(f"ERREUR: Le fichier de données n'existe pas à {data_path}")
+                return
+                
+            # Lire le fichier JSON
+            with open(data_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                print(f"Nombre de modèles à charger: {len(data)}")
+
+            # Convertir les données au format attendu par MongoDB
+            models_to_insert = []
+            for model in data:
+                print(f"Traitement du modèle: {model.get('model_name')}")
+                # Renommer les clés si nécessaire
+                model_data = {
+                    "model_name": model.get("model_name"),
+                    "architecture": model.get("architecture"),
+                    "model_type": model.get("model_type"),
+                    "parameters_billions": model.get("parameters_billions"),
+                    "training_co2_kg": model.get("training_co2_kg"),
+                    "overall_score": model.get("overall_score"),
+                    "cloud_provider": model.get("cloud_provider"),
+                    "date_submitted": model.get("date_submitted")
+                }
+                
+                # Vérifier les données requises
+                if not all(model_data.values()):
+                    print(f"ATTENTION: Données manquantes pour le modèle {model.get('model_name')}")
+                    print(f"Données: {model_data}")
+                    continue
+                
+                # Calculer l'efficacité carbone
+                if model_data["training_co2_kg"] and model_data["overall_score"]:
+                    model_data["carbon_efficiency"] = model_data["overall_score"] / model_data["training_co2_kg"]
+                
+                models_to_insert.append(model_data)
+
+            # Insérer les données en masse
+            if models_to_insert:
+                result = await collection.insert_many(models_to_insert)
+                print(f"Chargement initial réussi : {len(result.inserted_ids)} modèles insérés.")
+            else:
+                print("Aucun modèle à insérer.")
+
+        except Exception as e:
+            print(f"Erreur lors du chargement initial des données : {str(e)}")
+            raise

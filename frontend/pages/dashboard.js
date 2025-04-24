@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import Head from 'next/head';
 import {
   FunnelIcon,           // Anciennement FilterIcon
@@ -8,18 +9,9 @@ import {
   ExclamationCircleIcon // Correct
 } from '@heroicons/react/24/outline';
 import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { fetchWithAuth } from '../utils/api'; // Ajustez le chemin si nécessaire
 
 // Données fictives pour le développement
-const MOCK_DATA = [
-  { id: '1', model_name: 'GPT-4', parameters_billions: 1000, architecture: 'Transformer', model_type: '💬 chat models', training_co2_kg: 5000, overall_score: 90, cloud_provider: 'Microsoft (Azure)' },
-  { id: '2', model_name: 'LLaMA-3', parameters_billions: 70, architecture: 'LlamaForCausalLM', model_type: '🟢 pretrained', training_co2_kg: 1200, overall_score: 75, cloud_provider: null },
-  { id: '3', model_name: 'Mistral-7B', parameters_billions: 7, architecture: 'MistralForCausalLM', model_type: '🟢 pretrained', training_co2_kg: 800, overall_score: 65, cloud_provider: null },
-  { id: '4', model_name: 'BLOOM-176B', parameters_billions: 176, architecture: 'BloomForCausalLM', model_type: '🟢 pretrained', training_co2_kg: 3200, overall_score: 70, cloud_provider: 'Hugging Face' },
-  { id: '5', model_name: 'Claude-3', parameters_billions: 120, architecture: 'Transformer', model_type: '💬 chat models', training_co2_kg: 2800, overall_score: 85, cloud_provider: null },
-  { id: '6', model_name: 'Gemma-7B', parameters_billions: 7, architecture: 'Gemma2ForCausalLM', model_type: '🟢 pretrained', training_co2_kg: 750, overall_score: 60, cloud_provider: 'Google Cloud' },
-  { id: '7', model_name: 'Falcon-40B', parameters_billions: 40, architecture: 'FalconForCausalLM', model_type: '🟢 pretrained', training_co2_kg: 1800, overall_score: 68, cloud_provider: null },
-  { id: '8', model_name: 'Phi-2', parameters_billions: 2.7, architecture: 'PhiForCausalLM', model_type: '🔶 fine-tuned', training_co2_kg: 350, overall_score: 55, cloud_provider: 'Microsoft (Azure)' },
-];
 
 // Couleurs pour les graphiques
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1'];
@@ -30,6 +22,12 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    pageSize: 20,
+    totalItems: 0,
+    totalPages: 0
+  });
   const [filters, setFilters] = useState({
     minParams: '',
     maxParams: '',
@@ -46,74 +44,82 @@ export default function Dashboard() {
     direction: 'ascending'
   });
   const [showFilters, setShowFilters] = useState(false);
+  const { isAuthenticated } = useAuth();
 
-  // Simuler le chargement des données depuis l'API
+  // Charger les données initiales depuis l'API au montage OU quand l'auth change
   useEffect(() => {
-    // Dans une vraie application, nous ferions un appel API ici
-    setTimeout(() => {
-      setModels(MOCK_DATA);
-      setFilteredModels(MOCK_DATA);
+    const loadModels = async () => {
+      console.log("Dashboard effect running. isAuthenticated:", isAuthenticated);
+      setLoading(true);
+      setError(null);
+      try {
+        const queryParams = new URLSearchParams();
+        
+        // Ajouter les filtres
+        if (filters.minParams) queryParams.append('min_parameters', filters.minParams);
+        if (filters.maxParams) queryParams.append('max_parameters', filters.maxParams);
+        if (filters.architecture) queryParams.append('architecture', filters.architecture);
+        if (filters.modelType) queryParams.append('model_type', filters.modelType);
+        if (filters.minScore) queryParams.append('min_score', filters.minScore);
+        if (filters.maxScore) queryParams.append('max_score', filters.maxScore);
+        if (filters.minCO2) queryParams.append('min_co2', filters.minCO2);
+        if (filters.maxCO2) queryParams.append('max_co2', filters.maxCO2);
+        if (filters.cloudProvider) queryParams.append('cloud_provider', filters.cloudProvider);
+        
+        // Ajouter la recherche
+        if (searchTerm) queryParams.append('model_name', searchTerm);
+        
+        // Ajouter le tri
+        if (sortConfig.key) {
+          queryParams.append('sort_by', sortConfig.key);
+          queryParams.append('sort_order', sortConfig.direction === 'ascending' ? 'asc' : 'desc');
+        }
+
+        // Ajouter la pagination
+        queryParams.append('page', pagination.currentPage);
+        queryParams.append('page_size', pagination.pageSize);
+
+        const response = await fetchWithAuth(`/api/v1/models/?${queryParams.toString()}`);
+        console.log("Dashboard: API Response:", response);
+
+        if (response && response.items) {
+          setModels(response.items);
+          setFilteredModels(response.items);
+          setPagination(prev => ({
+            ...prev,
+            totalItems: response.total,
+            totalPages: Math.ceil(response.total / pagination.pageSize)
+          }));
+        } else {
+          console.log("Dashboard: No items found in response.");
+          setModels([]);
+          setFilteredModels([]);
+          setPagination(prev => ({
+            ...prev,
+            totalItems: 0,
+            totalPages: 0
+          }));
+        }
+      } catch (err) {
+        console.error("Dashboard: Erreur lors de la récupération des modèles:", err);
+        setError(err.message || "Impossible de charger les modèles.");
+        setModels([]);
+        setFilteredModels([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isAuthenticated) {
+      console.log("Dashboard: User authenticated, calling loadModels().");
+      loadModels();
+    } else {
+      console.log("Dashboard: User not authenticated, clearing models and stopping loading.");
+      setModels([]);
+      setFilteredModels([]);
       setLoading(false);
-    }, 1000);
-  }, []);
-
-  // Filtrer les modèles en fonction des critères
-  useEffect(() => {
-    if (models.length === 0) return;
-
-    let result = [...models];
-
-    // Recherche par nom
-    if (searchTerm) {
-      result = result.filter(model => 
-        model.model_name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
     }
-
-    // Filtres numériques et de sélection
-    if (filters.minParams) {
-      result = result.filter(model => model.parameters_billions >= Number(filters.minParams));
-    }
-    if (filters.maxParams) {
-      result = result.filter(model => model.parameters_billions <= Number(filters.maxParams));
-    }
-    if (filters.architecture) {
-      result = result.filter(model => model.architecture === filters.architecture);
-    }
-    if (filters.modelType) {
-      result = result.filter(model => model.model_type === filters.modelType);
-    }
-    if (filters.minScore) {
-      result = result.filter(model => model.overall_score >= Number(filters.minScore));
-    }
-    if (filters.maxScore) {
-      result = result.filter(model => model.overall_score <= Number(filters.maxScore));
-    }
-    if (filters.minCO2) {
-      result = result.filter(model => model.training_co2_kg >= Number(filters.minCO2));
-    }
-    if (filters.maxCO2) {
-      result = result.filter(model => model.training_co2_kg <= Number(filters.maxCO2));
-    }
-    if (filters.cloudProvider) {
-      result = result.filter(model => model.cloud_provider === filters.cloudProvider);
-    }
-
-    // Tri
-    if (sortConfig.key) {
-      result.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-          return sortConfig.direction === 'ascending' ? -1 : 1;
-        }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-          return sortConfig.direction === 'ascending' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-
-    setFilteredModels(result);
-  }, [models, searchTerm, filters, sortConfig]);
+  }, [isAuthenticated, searchTerm, filters, sortConfig, pagination.currentPage, pagination.pageSize]);
 
   // Fonction pour gérer le tri
   const requestSort = (key) => {
@@ -142,6 +148,23 @@ export default function Dashboard() {
       key: 'model_name',
       direction: 'ascending'
     });
+  };
+
+  // Fonction pour changer de page
+  const handlePageChange = (newPage) => {
+    setPagination(prev => ({
+      ...prev,
+      currentPage: newPage
+    }));
+  };
+
+  // Fonction pour changer la taille de la page
+  const handlePageSizeChange = (newSize) => {
+    setPagination(prev => ({
+      ...prev,
+      pageSize: newSize,
+      currentPage: 1 // Reset to first page when changing page size
+    }));
   };
 
   // Préparer les données pour les graphiques
@@ -547,6 +570,43 @@ export default function Dashboard() {
                   </tbody>
                 </table>
               )}
+            </div>
+          </div>
+
+          {/* Ajouter la pagination en bas du tableau */}
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center">
+              <span className="text-sm text-gray-700">
+                Affichage de {((pagination.currentPage - 1) * pagination.pageSize) + 1} à{' '}
+                {Math.min(pagination.currentPage * pagination.pageSize, pagination.totalItems)} sur{' '}
+                {pagination.totalItems} résultats
+              </span>
+              <select
+                value={pagination.pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                className="ml-2 rounded-md border-gray-300 py-1 pl-3 pr-10 text-base focus:border-green-500 focus:outline-none focus:ring-green-500 sm:text-sm"
+              >
+                <option value={10}>10 par page</option>
+                <option value={20}>20 par page</option>
+                <option value={50}>50 par page</option>
+                <option value={100}>100 par page</option>
+              </select>
+            </div>
+            <div className="flex">
+              <button
+                onClick={() => handlePageChange(pagination.currentPage - 1)}
+                disabled={pagination.currentPage === 1}
+                className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Précédent
+              </button>
+              <button
+                onClick={() => handlePageChange(pagination.currentPage + 1)}
+                disabled={pagination.currentPage === pagination.totalPages}
+                className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Suivant
+              </button>
             </div>
           </div>
         </div>

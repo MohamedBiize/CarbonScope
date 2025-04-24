@@ -1,0 +1,52 @@
+[
+  {
+    "model_name": "GPT-4",
+    "architecture": "Transformer",
+    "model_type": "LLM",
+    "parameters_billions": 1000,
+    "training_co2_kg": 500,
+    "overall_score": 0.85,
+    "cloud_provider": "Azure",
+    "date_submitted": "2023-03-14T00:00:00Z"
+  },
+  {
+    "model_name": "Claude 2",
+    "architecture": "Transformer",
+    "model_type": "LLM",
+    "parameters_billions": 800,
+    "training_co2_kg": 400,
+    "overall_score": 0.82,
+    "cloud_provider": "AWS",
+    "date_submitted": "2023-07-11T00:00:00Z"
+  },
+  {
+    "model_name": "PaLM 2",
+    "architecture": "Transformer",
+    "model_type": "LLM",
+    "parameters_billions": 600,
+    "training_co2_kg": 300,
+    "overall_score": 0.80,
+    "cloud_provider": "Google Cloud",
+    "date_submitted": "2023-05-10T00:00:00Z"
+  },
+  {
+    "model_name": "Llama 2",
+    "architecture": "Transformer",
+    "model_type": "LLM",
+    "parameters_billions": 700,
+    "training_co2_kg": 350,
+    "overall_score": 0.78,
+    "cloud_provider": "Meta",
+    "date_submitted": "2023-07-18T00:00:00Z"
+  },
+  {
+    "model_name": "Falcon 180B",
+    "architecture": "Transformer",
+    "model_type": "LLM",
+    "parameters_billions": 180,
+    "training_co2_kg": 200,
+    "overall_score": 0.75,
+    "cloud_provider": "TII",
+    "date_submitted": "2023-09-06T00:00:00Z"
+  }
+] 

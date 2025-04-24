@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { useAuth } from '../contexts/AuthContext';
+import { fetchWithAuth } from '../utils/api';
 import {
   BoltIcon,             // Anciennement BoltIcon
   MapPinIcon,           // Anciennement MapPinIcon
@@ -28,6 +30,7 @@ const REGIONS = [
 ];
 
 export default function Simulateur() {
+  const { user } = useAuth();
   const [models, setModels] = useState([]);
   const [regions, setRegions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,18 +47,31 @@ export default function Simulateur() {
   const [showResults, setShowResults] = useState(false);
   const [savedSimulations, setSavedSimulations] = useState([]);
 
-  // Simuler le chargement des données depuis l'API
+  // Load models and regions from API
   useEffect(() => {
-    // Dans une vraie application, nous ferions un appel API ici
-    setTimeout(() => {
-      setModels(MOCK_MODELS);
-      setFilteredModels(MOCK_MODELS);
-      setRegions(REGIONS);
-      setLoading(false);
-    }, 1000);
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [modelsData, regionsData] = await Promise.all([
+          fetchWithAuth('/api/v1/models/'),
+          fetchWithAuth('/api/v1/simulations/regions')
+        ]);
+        setModels(modelsData.items || []);
+        setFilteredModels(modelsData.items || []);
+        setRegions(regionsData);
+        setError(null);
+      } catch (err) {
+        setError('Erreur lors du chargement des données');
+        console.error('Error loading data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
-  // Filtrer les modèles en fonction du terme de recherche
+  // Filter models based on search term
   useEffect(() => {
     if (models.length === 0) return;
 
@@ -69,65 +85,94 @@ export default function Simulateur() {
     }
   }, [models, searchTerm]);
 
-  // Fonction pour exécuter la simulation
-  const runSimulation = () => {
+  // Run simulation
+  const runSimulation = async () => {
     if (!selectedModel || !selectedRegion) {
       setError("Veuillez sélectionner un modèle et une région pour la simulation.");
       return;
     }
 
-    setLoading(true);
-    
-    // Simuler un appel API avec un délai
-    setTimeout(() => {
-      // Calculer l'impact carbone (simulation simplifiée)
-      const energyPerInferenceKwh = selectedModel.parameters_billions * 0.0001;
-      const totalEnergyKwh = energyPerInferenceKwh * simulationParams.frequency_per_day * simulationParams.duration_days;
-      const totalCo2Kg = totalEnergyKwh * selectedRegion.co2_factor;
-      
-      // Calculer les équivalents
-      const equivalentCarKm = totalCo2Kg / 0.17; // 0.17 kg CO2 par km en voiture
-      const equivalentTreesNeeded = Math.ceil(totalCo2Kg / 25); // 25 kg CO2 absorbé par arbre par an
-      const equivalentSmartphoneCharges = Math.ceil(totalCo2Kg / 0.005); // 0.005 kg CO2 par charge
-      
-      const result = {
-        model_id: selectedModel.id,
-        model_name: selectedModel.model_name,
-        region_id: selectedRegion.id,
-        region_name: selectedRegion.name,
-        frequency_per_day: simulationParams.frequency_per_day,
-        duration_days: simulationParams.duration_days,
-        total_energy_kwh: totalEnergyKwh.toFixed(2),
-        total_co2_kg: totalCo2Kg.toFixed(2),
-        equivalent_car_km: equivalentCarKm.toFixed(2),
-        equivalent_trees_needed: equivalentTreesNeeded,
-        equivalent_smartphone_charges: equivalentSmartphoneCharges,
-        timestamp: new Date().toISOString()
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetchWithAuth('/api/v1/simulations/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model_id: selectedModel.id,
+          region: selectedRegion.id,
+          frequency_per_day: simulationParams.frequency_per_day,
+          duration_days: simulationParams.duration_days
+        })
+      });
+
+      // Format numbers to 3 decimal places
+      const formattedResponse = {
+        ...response,
+        total_co2_kg: Number(response.total_co2_kg.toFixed(3)),
+        total_energy_kwh: response.total_energy_kwh ? Number(response.total_energy_kwh.toFixed(3)) : null,
+        total_water_liters: response.total_water_liters ? Number(response.total_water_liters.toFixed(3)) : null,
+        equivalent_car_km: response.equivalent_car_km ? Number(response.equivalent_car_km.toFixed(3)) : null,
+        equivalent_smartphone_charges: response.equivalent_smartphone_charges ? Math.round(response.equivalent_smartphone_charges) : null
       };
-      
-      setSimulationResult(result);
+
+      setSimulationResult(formattedResponse);
       setShowResults(true);
+    } catch (err) {
+      setError('Erreur lors de la simulation');
+      console.error('Simulation error:', err);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
-  // Fonction pour sauvegarder une simulation
-  const saveSimulation = () => {
+  // Save simulation
+  const saveSimulation = async () => {
     if (!simulationResult) return;
     
-    // Ajouter la simulation à la liste des simulations sauvegardées
-    setSavedSimulations([...savedSimulations, simulationResult]);
-    
-    // Afficher un message de confirmation (dans une vraie application, nous utiliserions un toast)
-    alert("Simulation sauvegardée avec succès !");
+    try {
+      await fetchWithAuth(`/api/v1/simulations/save/${simulationResult.id}`, {
+        method: 'POST'
+      });
+      
+      setSavedSimulations([...savedSimulations, simulationResult]);
+      alert("Simulation sauvegardée avec succès !");
+    } catch (err) {
+      setError('Erreur lors de la sauvegarde');
+      console.error('Save error:', err);
+    }
   };
 
-  // Fonction pour générer un rapport
-  const generateReport = () => {
+  // Generate report
+  const generateReport = async () => {
     if (!simulationResult) return;
     
-    // Dans une vraie application, nous générerions un PDF ou un fichier Excel
-    alert("Génération de rapport (fonctionnalité simulée)");
+    try {
+      const response = await fetchWithAuth('/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(simulationResult)
+      });
+
+      // Create a download link for the report
+      const blob = new Blob([response], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rapport-simulation-${new Date().toISOString()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      setError('Erreur lors de la génération du rapport');
+      console.error('Report error:', err);
+    }
   };
 
   return (

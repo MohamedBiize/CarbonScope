@@ -52,8 +52,7 @@ async def get_recommendations(
 
 @router.get("/ranking", response_model=List[CarbonScore])
 async def get_carbon_ranking(
-    limit: int = 10,
-    current_user: User = Depends(get_current_active_user)
+    limit: int = 10
 ) -> Any:
     """
     Récupère le classement des modèles d'IA selon leur score carbone.
